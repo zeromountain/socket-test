@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { CompatClient, IMessage, Stomp } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-import axios from 'axios';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { CompatClient, IMessage, Stomp } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import axios from "axios";
 
 const ENDPOINT = process.env.REACT_APP_SOCKET_URL as string;
 
@@ -15,12 +15,12 @@ interface Message {
 
 function App() {
   const client = useRef<CompatClient>();
-  const [message, setMessage] = useState<string>('');
+  const [message, setMessage] = useState<string>("");
   const [messages, setMessages] = useState<Message[]>([]);
 
   const loadMessages = () => {
     axios
-      .get('/workspace/memo-list/1', {
+      .get("/workspace/memo-list/1", {
         baseURL: process.env.REACT_APP_API_URL,
       })
       .then((res) => {
@@ -30,45 +30,48 @@ function App() {
   };
 
   const handleSubscribe = (message: IMessage) => {
-    // const newMessage = JSON.parse(message.body);
+    console.log({ message });
+    const newMessage = JSON.parse(message.body);
     // console.log({ newMessage });
-    // setMessages((prevMessages) => [...prevMessages, newMessage.content]);
+    console.log("messages 업데이트 전", { messages });
+    setMessages((prevMessages) => [...prevMessages, newMessage.content]);
   };
 
   const sendHandler = (e: React.FormEvent) => {
     e.preventDefault();
     client.current?.send(
-      '/app/memo',
+      "/app/memo",
       {},
       JSON.stringify({
         workspaceId: 1,
         content: message,
       })
     );
-    setMessage('');
+    setMessage("");
     setTimeout(() => {
       loadMessages();
     }, 50);
   };
 
   const connectHandler = useCallback(() => {
-    // client.current = Stomp.over(() => {
-    //   const sock = new SockJS(ENDPOINT);
-    //   return sock;
-    // })
     client.current = Stomp.over(() => new SockJS(ENDPOINT));
     setMessages([]);
     client.current.connect({}, () => {
-      console.log('asdfsadfsadfasgjklasdgklsjadgklasdjgklasdjgklsadjglasg');
-      loadMessages();
-      // client.current?.subscribe(`/sub/chat/room/${1}`, handleSubscribe);
+      if (!client.current) return;
+      client.current.subscribe(`/sub/chat/room/${1}`, handleSubscribe);
     });
   }, []);
 
   useEffect(() => {
+    console.log("messages 변화 감지", { messages });
+  }, [messages]);
+
+  useEffect(() => {
+    loadMessages();
     connectHandler();
     return () => {
       client.current?.disconnect();
+      client.current = undefined;
     };
   }, []);
 
@@ -82,11 +85,11 @@ function App() {
       </div>
       <form onSubmit={sendHandler}>
         <input
-          type='text'
+          type="text"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
-        <button type='submit'>Send</button>
+        <button type="submit">Send</button>
       </form>
     </div>
   );
